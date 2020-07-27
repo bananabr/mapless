@@ -1,0 +1,10 @@
+{
+  "name": "mapless",
+  "author": "Daniel Santos (bananabr)",
+  "description": "Mapless is a collection of AWS Lambda functions that can be used to apply the Cloud's virtually infinite parallelization power for common highly distributable penetration testing tasks like brute-forcing and password spraying.",
+  "version": "0.1.0",
+  "dependencies": {},
+  "devDependencies": {
+    "serverless-python-requirements": "^5.1.0"
+  }
+}
