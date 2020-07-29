@@ -14,7 +14,7 @@ import socket
 
 import aiohttp
 
-if __name__ == "__main__":
+async def main():
     parser = OptionParser()
     parser.add_option("-U", "--url", dest="base_url",
                       help="the mapless api base url (eg.: https://0000000000.execute-api.us-east-1.amazonaws.com)")
@@ -55,59 +55,48 @@ if __name__ == "__main__":
     URL = f'{BASE_URL}{ENDPOINT}'
     APIKEY = os.environ.get('MAPLESS_API_KEY', options.api_key)
     HEADERS = {'X-API-KEY': APIKEY, 'Content-Type': 'application/json'}
-    CONNECTOR = aiohttp.TCPConnector(limit_per_host=options.rate_limit)
-    SESSION = aiohttp.ClientSession(headers=HEADERS, connector=CONNECTOR)
-    LOOP = asyncio.get_event_loop()
+    logging.debug(f'HEADERS: {HEADERS}')
+    CONNECTOR = aiohttp.TCPConnector(limit_per_host=options.rate_limit, ttl_dns_cache=100)
 
-    async def test_auth(host, port, username, password, retries=3, throttle=True, throttle_time=3):
+
+    async def test_auth(session, host, port, username, password):
         params = {'host': host, 'port': port,
                   'username': username, 'password': password}
-        retry_ct = 0
-        while True:
-            if retry_ct == retries:
-                return
-            async with SESSION.get(URL, params=params) as resp:
-                data = await resp.json()
-                logging.info(f"{username}:{password}@{host}:{port}")
-                logging.debug(data)
-                status = data.get("statusCode", 500)
-                if status == 200:
-                    logging.critical(data)
-                    return
-                elif status == 401:
-                    return
-                else:
-                    if throttle:
-                        asyncio.sleep(throttle_time)
-                    retry_ct += 1
+        async with session.get(URL, params=params) as resp:
+            data = await resp.json()
+            logging.info(f"{username}:{password}@{host}:{port}")
+            logging.debug(data)
+            status = data.get("statusCode", 500)
+            if status == 200:
+                logging.critical(data)
 
-    async def close_session():
-        await SESSION.close()
-
-    scan_args = []
     with open(options.password_file, 'r') as password_file:
-        for password in password_file.readlines():
-            if options.targets_file:
-                import csv
-                with open(options.targets_file, 'r') as csvfile:
-                    reader = csv.DictReader(csvfile)
-                    scan_args = list(map(lambda row: {
-                        'host': row['ip'],
-                        'port': row['port'],
+        async with aiohttp.ClientSession(headers=HEADERS, connector=CONNECTOR) as session:
+            scan_args = []    
+            for password in password_file.readlines():
+                if options.targets_file:
+                    import csv
+                    with open(options.targets_file, 'r') as csvfile:
+                        reader = csv.DictReader(csvfile)
+                        scan_args = list(map(lambda row: {
+                            'host': row['ip'],
+                            'port': row['port'],
+                            'username': options.username,
+                            'password': password.strip(),
+                            'session': session
+                        }, reader))
+                else:
+                    scan_args.append({
+                        'host': options.host,
+                        'port': options.port,
                         'username': options.username,
-                        'password': password.strip()
-                    }, reader))
-            else:
-                scan_args.append({
-                    'host': options.host,
-                    'port': options.port,
-                    'username': options.username,
-                    'password': password.strip()
-                })
+                        'password': password.strip(),
+                        'session': session
+                    })
 
-    LOOP.run_until_complete(
-        asyncio.gather(
-            *(test_auth(**args) for args in scan_args)
-        )
-    )
-    LOOP.run_until_complete(close_session())
+            await asyncio.gather(
+                *(test_auth(**args) for args in scan_args)
+            )
+
+if __name__ == "__main__":
+    asyncio.run(main())
