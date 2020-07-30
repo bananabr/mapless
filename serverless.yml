@@ -112,6 +112,14 @@ functions:
     events:
       - websocket:
           route: login_http
+  login_wordpress:
+    handler: functions.login.wordpress.handler
+    events:
+      - http:
+          path: login/wordpress
+          timeout: 5 # optional, in seconds, default is 6
+          method: get
+          private: true
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
