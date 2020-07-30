@@ -29,10 +29,8 @@ def test_auth(host, port=22, user='root', secret='password'):
 def handler(event, context):
     try:
         params = getParams(event)
-
-        result = {}
         port = int(params.get('port', 22))
-        username = params.get('username', '')
+        username = params.get('username', 'root')
         password = params.get('password', 'password')
 
         if test_auth(params['host'], port=port, user=username, secret=password):
