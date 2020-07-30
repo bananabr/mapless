@@ -1,7 +1,7 @@
 import json
 import socket
 
-from lib.http.jsonResponse import success, internal_server_error
+from lib.http.jsonResponse import success, unauthorized, internal_server_error
 from lib.http.decorators import log_context, requires, allows, allowed_values
 from lib.http.params import getParams
 from lib.http.websockets import send_to_connection
@@ -36,23 +36,9 @@ def handler(event, context):
         password = params.get('password', 'password')
 
         if test_auth(params['host'], port=port, user=username, secret=password):
-            result[port] = True
-            status = 200
+            return success(data=None)
         else:
-            status = 401
-            result[port] = False
-
-        response = {
-            "statusCode": status,
-            "body": {
-                'host': params['host'],
-                'username': username,
-                'password': password,
-                'result': result
-            }
-        }
-
-        return success(response)
+            return unauthorized(data=None)
     except Exception as ex:
         return internal_server_error({
             "statusCode": 500,

@@ -4,17 +4,20 @@ import socket
 import requests
 from requests.auth import HTTPBasicAuth
 
-from lib.http.jsonResponse import success, internal_server_error
+from lib.http.jsonResponse import success, unauthorized, internal_server_error
 from lib.http.decorators import log_context, requires, allows, allowed_values
 from lib.http.params import getParams
 from lib.http.websockets import send_to_connection
 
+
 def test_auth(host, port=80, path='', user='admin', secret='admin'):
-	r = requests.get(f'http://{host}:{port}/{path}', auth=HTTPBasicAuth(user, secret))
-	if r.status_code == 200:
-        	return True
-	else:
-	        return False
+    r = requests.get(f'http://{host}:{port}/{path}',
+                     auth=HTTPBasicAuth(user, secret))
+    if r.status_code == 200:
+        return True
+    else:
+        return False
+
 
 @log_context
 @requires('host')
@@ -22,36 +25,23 @@ def test_auth(host, port=80, path='', user='admin', secret='admin'):
 def handler(event, context):
     try:
         params = getParams(event)
-
-        result = {}
         port = int(params.get('port', 80))
         username = params.get('username', 'admin')
         password = params.get('password', 'admin')
         path = params.get('path', '')
 
         if test_auth(params['host'], port=port, path=path, user=username, secret=password):
-            result[port] = True
-            status = 200
+            return success(data=None)
         else:
-            status = 401
-            result[port] = False
+            return unauthorized(data=None)
 
-        response = {
-            "statusCode": status,
-            "body": {
-                'host': params['host'],
-                'username': username,
-                'password': password,
-                'result': result
-            }
-        }
-
-        return success(response)
+        
     except Exception as ex:
         return internal_server_error({
             "statusCode": 500,
             'error': str(ex)
         })
+
 
 @log_context
 @requires('host')

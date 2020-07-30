@@ -62,13 +62,15 @@ async def main():
     async def test_auth(session, host, port, username, password):
         params = {'host': host, 'port': port,
                   'username': username, 'password': password}
-        async with session.get(URL, params=params) as resp:
-            data = await resp.json()
             logging.info(f"{username}:{password}@{host}:{port}")
+            if resp.status == 200:
+            data = await resp.json()
             logging.debug(data)
-            status = data.get("statusCode", 500)
-            if status == 200:
-                logging.critical(data)
+                print(
+                    f"Found valid password {colorit.color_front(password,0,255,0)} for {username}@{host}:{port}")
+            elif resp.status > 401:
+                data = await resp.json()
+                logging.error(data)
 
     with open(options.password_file, 'r') as password_file:
         async with aiohttp.ClientSession(headers=HEADERS, connector=CONNECTOR) as session:
