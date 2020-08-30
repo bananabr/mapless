@@ -14,7 +14,7 @@ import socket
 
 import aiohttp
 
-if __name__ == "__main__":
+async def main():
     parser = OptionParser()
     parser.add_option("-U", "--url", dest="base_url",
                       help="the mapless api base url (eg.: https://0000000000.execute-api.us-east-1.amazonaws.com)")
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser.add_option("-p", "--ports", dest="ports",
                       help="ports (eg: 22; 1-1024; 80,443)")
     parser.add_option("-f", "--file", dest="targets_file",
-                      help="csv file with targets (format: ip, port)")
+                      help="csv file with targets (format: ip)")
     parser.add_option("-r", "--rate-limit", type=int, dest="rate_limit", default=32,
                       help="thread count (default: 32)")
     parser.add_option("-t", "--timeout", type=int, dest="timeout", default=3,
@@ -52,20 +52,15 @@ if __name__ == "__main__":
     APIKEY = os.environ.get('MAPLESS_API_KEY', options.api_key)
     HEADERS = {'X-API-KEY': APIKEY, 'Content-Type': 'application/json'}
     CONNECTOR = aiohttp.TCPConnector(limit_per_host=options.rate_limit)
-    SESSION = aiohttp.ClientSession(headers=HEADERS, connector=CONNECTOR)
-    LOOP = asyncio.get_event_loop()
 
-    async def test_port(host, port, timeout=5):
+    async def test_port(session, host, port, timeout=5):
         params = {'host': host, 'port': port, 'timeout': timeout}
 
-        async with SESSION.get(URL, params=params) as resp:
+        async with session.get(URL, params=params) as resp:
             data = await resp.json()
             logging.info(f"{host}:{port}")
             logging.debug(data)
             return data
-
-    async def close_session():
-        await SESSION.close()
 
     ports = []
     if ',' in options.ports:
@@ -76,28 +71,48 @@ if __name__ == "__main__":
     else:
         ports = [int(options.ports)]
 
-    scan_args = []
-    for port in ports:
-        if options.targets_file:
-            import csv
-            with open(options.targets_file, 'r') as csvfile:
-                reader = csv.DictReader(csvfile)
-                scan_args = list(map(lambda row: {
-                    'host': row['ip'],
+    async with aiohttp.ClientSession(headers=HEADERS, connector=CONNECTOR) as session:
+        scan_args = []
+        responses = []
+        for port in ports:
+            if options.targets_file:
+                import csv
+                with open(options.targets_file, 'r') as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    scan_args += list(map(lambda row: {
+                        'session': session,
+                        'host': row['ip'],
+                        'port': port,
+                        'timeout': options.timeout
+                    }, reader))
+            else:
+                scan_args.append({
+                    'session': session,
+                    'host': options.host,
                     'port': port,
                     'timeout': options.timeout
-                }, reader))
-        else:
-            scan_args.append({
-                'host': options.host,
-                'port': port,
-                'timeout': options.timeout
-            })
+                })
 
-    result = LOOP.run_until_complete(
-        asyncio.gather(
-            *(test_port(**args) for args in scan_args)
-        )
-    )
-    LOOP.run_until_complete(close_session())
-    print(result)
+        tasks = []
+        logging.debug(f'# OF TASKS: {len(scan_args)}')
+        for args in scan_args:
+            task = asyncio.create_task(test_port(**args))
+            tasks.append(task)
+
+        import tqdm
+        for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
+            responses.append(await f)
+        print(list(filter(lambda p: p['open'], responses)))
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Ctrl+C pressed, exiting ...")
+        loop = asyncio.get_event_loop()
+        # stopping the event loop
+        if loop:
+            print("Stopping event loop ...")
+            loop.stop()
+        print("Shutdown complete ...")
