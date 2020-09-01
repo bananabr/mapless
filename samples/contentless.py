@@ -34,6 +34,8 @@ async def main():
                       help="csv file with targets (format: ip, port)")
     parser.add_option("-w", "--wordlist", dest="wordlist_file",
                       help="wordlist with the directories to look for")
+    parser.add_option("-s", "--bad-string", dest="bad_string", default=None,
+                      help="")
     parser.add_option("--rl", "--rate-limit", type=int, dest="rate_limit", default=INT_MAX,
                       help="limit the number of requests/period (default: no limit)")
     parser.add_option("--rlp", "--rate-limit-period", type=float, dest="rate_limit_period", default=1.0,
@@ -67,12 +69,14 @@ async def main():
     THROTTLER = Throttler(rate_limit=options.rate_limit,
                           period=options.rate_limit_period)
 
-    async def test_path(session, host, port, path, throttler):
+    async def test_path(session, host, port, path, throttler, bad_string=None):
         params = {'host': host, 'port': port, 'path': path}
+        if bad_string:
+            params['badstring'] = bad_string
         async with throttler, session.get(URL, params=params) as resp:
+            logging.debug(f"{path}: {resp.status}")
             if resp.status != 404:
                 data = await resp.json()
-                logging.debug(data)
                 return data
 
     with open(options.wordlist_file, 'r') as wordlist_file:
@@ -87,16 +91,18 @@ async def main():
                             'host': row['ip'],
                             'port': row['port'],
                             'session': session,
-                            'path': f'/{path}',
-                            'throttler': THROTTLER
+                            'path': f'/{path.strip()}',
+                            'throttler': THROTTLER,
+                            'bad_string': options.bad_string
                         }, reader))
                 else:
                     scan_args.append({
                         'host': options.host,
                         'port': options.port,
                         'session': session,
-                        'path': f'/{path}',
-                        'throttler': THROTTLER
+                        'path': f'/{path.strip()}',
+                        'throttler': THROTTLER,
+                        'bad_string': options.bad_string
                     })
 
             tasks = []
@@ -109,6 +115,7 @@ async def main():
             responses = []
             for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks)):
                 responses.append(await f)
+            print(json.dumps(list(filter(lambda r: r != None, responses))))
 
 if __name__ == "__main__":
     try:
