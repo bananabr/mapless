@@ -87,7 +87,7 @@ async def main():
                 data = await resp.json()
                 logging.debug(data)
                 print(
-                    f"Found valid password {colorit.color_front(password,0,255,0)} for {username}@{host}:{port}")
+                    f"Found valid password '{colorit.color_front(password,0,255,0)}' for {username}@{host}:{port}")
             elif resp.status > 401:
                 data = await resp.json()
                 logging.debug(data)
