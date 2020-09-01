@@ -12,3 +12,4 @@ asterisk-ami==0.1.5
 websockets==8.1
 asyncio-throttle==1.0.1
 colorit==0.1.0
+tqdm==4.48.2

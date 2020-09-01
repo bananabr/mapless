@@ -133,6 +133,32 @@ functions:
           timeout: 5 # optional, in seconds, default is 6
           method: get
           private: true
+  cdisc_http:
+    handler: functions.content_discovery.http.handler
+    events:
+      - http:
+          path: content_discovery/http
+          timeout: 5 # optional, in seconds, default is 6
+          method: get
+          private: true
+      - http:
+          path: content_discovery/http
+          timeout: 5 # optional, in seconds, default is 6
+          method: post
+          private: true
+  cdisc_https:
+    handler: functions.content_discovery.https.handler
+    events:
+      - http:
+          path: content_discovery/https
+          timeout: 5 # optional, in seconds, default is 6
+          method: get
+          private: true
+      - http:
+          path: content_discovery/https
+          timeout: 5 # optional, in seconds, default is 6
+          method: post
+          private: true
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
