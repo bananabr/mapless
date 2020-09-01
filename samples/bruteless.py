@@ -37,6 +37,8 @@ async def main():
                       help="hostname/IP")
     parser.add_option("-p", "--port", type=int, dest="port", default=80,
                       help="port (default: 80)")
+    parser.add_option("--path", dest="path", default='',
+                      help="HTTP path")
     parser.add_option("-u", "--user", dest="username", default='root',
                       help="username")
     parser.add_option("-P", "--password", dest="password_file",
@@ -78,7 +80,7 @@ async def main():
     THROTTLER = Throttler(rate_limit=options.rate_limit,
                           period=options.rate_limit_period)
 
-    async def test_auth(session, host, port, username, password, throttler):
+    async def test_auth(session, host, port, username, password, throttler, path=None):
         params = {'host': host, 'port': port,
                   'username': username, 'password': password}
         async with throttler, session.get(URL, params=params) as resp:
@@ -106,6 +108,7 @@ async def main():
                             'username': options.username,
                             'password': password.strip(),
                             'session': session,
+                            'path': options.path,
                             'throttler': THROTTLER
                         }, reader))
                 else:
@@ -115,6 +118,7 @@ async def main():
                         'username': options.username,
                         'password': password.strip(),
                         'session': session,
+                        'path': options.path,
                         'throttler': THROTTLER
                     })
 
