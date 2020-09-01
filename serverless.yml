@@ -99,6 +99,19 @@ functions:
     events:
       - websocket:
           route: login_ssh
+  login_https:
+    handler: functions.login.https.handler
+    events:
+      - http:
+          path: login/https
+          timeout: 5 # optional, in seconds, default is 6
+          method: get
+          private: true
+      - http:
+          path: login/https
+          timeout: 5 # optional, in seconds, default is 6
+          method: post
+          private: true
   login_http:
     handler: functions.login.http.handler
     events:
